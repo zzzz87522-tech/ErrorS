@@ -2,6 +2,8 @@ import uuid  # для уникальных идентификаторов коп
 
 from django.db import models
 from django.urls import reverse  # для get_absolute_url
+from django.contrib.auth.models import User
+from datetime import date
 
 
 class Genre(models.Model):
@@ -23,7 +25,6 @@ class Book(models.Model):
     class Meta:
         ordering = ['title']
 
-
     def __str__(self):
         return self.title
 
@@ -39,7 +40,7 @@ class BookInstance(models.Model):
     book = models.ForeignKey('Book', on_delete=models.SET_NULL, null=True)
     imprint = models.CharField(max_length=200)
     due_back = models.DateField(null=True, blank=True)
-
+    borrower = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     LOAN_STATUS = (
         ('m', 'Техобслуживание'),
         ('o', 'На руках'),
@@ -52,10 +53,19 @@ class BookInstance(models.Model):
                               help_text='Доступность книги')
 
     class Meta:
-        ordering = ["due_back"]
+        ordering = ['due_back']
+        permissions = (("can_mark_returned", "Set book as returned"),)
 
     def __str__(self):
-        return f'{self.id} ({self.book.title})'
+        if self.book:
+            return f'{self.id} ({self.book.title})'
+        return f'{self.id} (без книги)'
+
+    @property
+    def is_overdue(self):
+        if self.due_back and date.today() > self.due_back:
+            return True
+        return False
 
 
 class Author(models.Model):
@@ -64,14 +74,6 @@ class Author(models.Model):
     last_name = models.CharField(max_length=100)
     date_of_birth = models.DateField(null=True, blank=True)
     date_of_death = models.DateField('Умер', null=True, blank=True)
-
-    class Meta:
-        ordering = ['last_name']
-
-
-    class Meta:
-        ordering = ['title']
-
 
     class Meta:
         ordering = ['last_name', 'first_name']
